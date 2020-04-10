@@ -104,6 +104,7 @@ DataProcessorSpec CommonDataProcessors::getOutputObjSink(outputObjects const& ob
             currentDirectory = nextDirectory;
             currentFile = filename;
           }
+          LOGF(INFO,"Writing objects in directory %s, with entry name %s", currentDirectory.c_str(),entry.name.c_str());
           (f[route.policy]->GetDirectory(currentDirectory.c_str()))->WriteObjectAny(entry.obj, entry.kind, entry.name.c_str());
         }
       }
@@ -169,10 +170,15 @@ DataProcessorSpec CommonDataProcessors::getOutputObjSink(outputObjects const& ob
         LOG(ERROR) << "No object " << obj.name << " in map for task " << taskname;
         return;
       }
+      LOGF(INFO,"Processing object with name %s from taskname %s from a list of %d objects", named->GetName(), taskname, objects.size());
+      for (auto _obj : objects) {
+        LOGF(INFO,"Stored object %s", _obj.c_str());
+      }
       auto nameHash = compile_time_hash(obj.name.c_str());
       InputObjectRoute key{obj.name, nameHash, taskname, hash, policy};
       auto existing = std::find_if(inputObjects->begin(), inputObjects->end(), [&](auto&& x) { return (x.first.uniqueId == nameHash) && (x.first.taskHash == hash); });
       if (existing == inputObjects->end()) {
+        LOGF(INFO,"Pushing object %s into inputObjects", obj.name.c_str());
         inputObjects->push_back(std::make_pair(key, obj));
         return;
       }
@@ -182,6 +188,7 @@ DataProcessorSpec CommonDataProcessors::getOutputObjSink(outputObjects const& ob
         return;
       }
 
+      LOGF(INFO,"Asking object %s for merging", obj.name.c_str());
       TList coll;
       coll.Add(static_cast<TObject*>(obj.obj));
       merger(existing->second.obj, &coll, nullptr);

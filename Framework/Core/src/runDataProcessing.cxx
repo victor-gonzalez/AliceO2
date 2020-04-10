@@ -191,6 +191,7 @@ bool checkIfCanExit(std::vector<DeviceInfo> const& infos)
       return false;
     }
   }
+  LOGF(INFO,"All children ready to exit");
   return true;
 }
 
@@ -525,6 +526,7 @@ void processChildrenOutput(DriverInfo& driverInfo, DeviceInfos& infos, DeviceSpe
           // FIXME: this should really be a policy...
           doToMatchingPid(info.pid, [](DeviceInfo& info) { info.streamingState = StreamingState::EndOfStreaming; });
         }
+        LOG(INFO) << "Received: " << command << " from pid: " << info.pid << " with arg: " << arg;
       } else if (!control.quiet && (token.find(control.logFilter) != std::string::npos) &&
                  logLevel >= control.logLevel) {
         assert(info.historyPos >= 0);

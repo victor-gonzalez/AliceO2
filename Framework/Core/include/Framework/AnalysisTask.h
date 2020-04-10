@@ -205,6 +205,7 @@ struct OutputObj {
     std::to_chars(desc.str, desc.str + 2, lhash, 16);
     std::to_chars(desc.str + 2, desc.str + 4, mTaskHash, 16);
     std::to_chars(desc.str + 4, desc.str + 12, reinterpret_cast<uint64_t>(this), 16);
+    LOGF(INFO,"With gcc > 8.1 got output string: %s, generated hash: %s", label.c_str(),desc.str);
 #else
     std::stringstream s;
     s << std::hex << lhash;
@@ -701,6 +702,7 @@ template <>
 struct OutputManager<HistogramRegistry> {
   static bool appendOutput(std::vector<OutputSpec>& outputs, HistogramRegistry& what, uint32_t)
   {
+    LOGF(info,"OutptManager<HistogramRegistry>appendOutput");
     outputs.emplace_back(what.spec());
     return true;
   }
@@ -724,6 +726,7 @@ template <typename T>
 struct OutputManager<OutputObj<T>> {
   static bool appendOutput(std::vector<OutputSpec>& outputs, OutputObj<T>& what, uint32_t hash)
   {
+    LOGF(info,"OutptManager<OutputObj>appendOutput");
     what.setHash(hash);
     outputs.emplace_back(what.spec());
     return true;
@@ -856,8 +859,10 @@ DataProcessorSpec adaptAnalysisTask(char const* name, Args&&... args)
                tupledTask);
   }
 
+  LOGF(info,"Pre append Output for task %s",name);
   std::apply([&outputs, &hash](auto&... x) { return (OutputManager<std::decay_t<decltype(x)>>::appendOutput(outputs, x, hash), ...); }, tupledTask);
   std::apply([&options, &hash](auto&... x) { return (OptionManager<std::decay_t<decltype(x)>>::appendOption(options, x), ...); }, tupledTask);
+  LOGF(info,"Affter append Output for task %s",name);
 
   auto algo = AlgorithmSpec::InitCallback{[task, expressionInfos](InitContext& ic) {
     auto tupledTask = o2::framework::to_tuple_refs(*task.get());
@@ -866,8 +871,11 @@ DataProcessorSpec adaptAnalysisTask(char const* name, Args&&... args)
     auto& callbacks = ic.services().get<CallbackService>();
     auto endofdatacb = [task](EndOfStreamContext& eosContext) {
       auto tupledTask = o2::framework::to_tuple_refs(*task.get());
+      LOGF(info,"Before invoking OutputManager::postRun for task unknown");
       std::apply([&eosContext](auto&&... x) { return (OutputManager<std::decay_t<decltype(x)>>::postRun(eosContext, x), ...); }, tupledTask);
+      LOGF(info,"After invoking OutputManager::postRun for task unknown");
       eosContext.services().get<ControlService>().readyToQuit(QuitRequest::Me);
+      LOGF(info,"After sending readyToQuit for task unknown");
     };
     callbacks.set(CallbackService::Id::EndOfStream, endofdatacb);
 
@@ -881,9 +889,13 @@ DataProcessorSpec adaptAnalysisTask(char const* name, Args&&... args)
         task->run(pc);
       }
       if constexpr (has_process<T>::value) {
+        LOGF(info,"Before invoking process for task unknown");
         AnalysisDataProcessorBuilder::invokeProcess(*(task.get()), pc.inputs(), &T::process, expressionInfos);
+        LOGF(info,"After invoking process for task unknown");
       }
+      LOGF(info,"Before invoking OutputManager::finalize for task unknown");
       std::apply([&pc](auto&&... x) { return (OutputManager<std::decay_t<decltype(x)>>::finalize(pc, x), ...); }, tupledTask);
+      LOGF(info,"After invoking OutputManager::finalize for task unknown");
     };
   }};
 
