@@ -10,6 +10,8 @@
 #include "Framework/runDataProcessing.h"
 #include "Framework/AnalysisTask.h"
 #include "Framework/AnalysisDataModel.h"
+#include "Analysis/EventSelection.h"
+#include "Analysis/Centrality.h"
 #include <TROOT.h>
 #include <TList.h>
 #include <TDirectory.h>
@@ -23,6 +25,15 @@
 using namespace o2;
 using namespace o2::framework;
 using namespace o2::framework::expressions;
+
+namespace o2
+{
+  namespace aod
+  {
+    using CollisionEvSelCent = soa::Join<aod::Collisions, aod::EvSels, aod::Cents>::iterator;
+  } // namespace aod
+} // namespace o2
+
 
 namespace dptdptcorrelations {
   /* all this bins have to be make configurable */
@@ -53,6 +64,15 @@ namespace dptdptcorrelations {
 
   TH2F *fhPtVsEtaB = nullptr;
   TH2F *fhPtVsEtaA = nullptr;
+
+  bool IsEvtSelected(aod::CollisionEvSelCent const& collision) {
+    if (collision.alias()[0]) {
+      if (collision.sel7()) {
+        return true;
+      }
+    }
+    return false;
+  }
 }  /* end namespace dptdptcorrelations */
 
 
@@ -71,7 +91,7 @@ struct DptDptCorrelationsFilteredAnalysisTask {
   OutputObj<TH1F> fOutEtaA{"fHistEtaA", OutputObjHandlingPolicy::AnalysisObject};
   OutputObj<TH1F> fOutPhiA{"fHistPhiA", OutputObjHandlingPolicy::AnalysisObject};
   OutputObj<TH2F> fOutEtaVsPhiA{"CSTaskEtaVsPhiA", OutputObjHandlingPolicy::AnalysisObject};
-  OutputObj<TH2F> fOutPtVsEtaA{"fhPtVsEtaA_%s", OutputObjHandlingPolicy::AnalysisObject};
+  OutputObj<TH2F> fOutPtVsEtaA{"fhPtVsEtaA", OutputObjHandlingPolicy::AnalysisObject};
 
 //  OutputObj<TProfile3D> fhPt3DB{TProfile3D(Form("fhPt3DB_%s",fTaskConfigurationString.c_str()),"p_{T} vs #eta, #phi and vtx_{z} before;#eta;#phi;vtx_{z}",etabins,etalow,etaup,phibins,0.0,2*TMath::Pi(),zvtxbins,zvtxlow,zvtxup)};
 //  OutputObj<TProfile3D> fhPt3DA{TProfile3D(Form("fhPt3DA_%s",fTaskConfigurationString.c_str()),"p_{T} vs #eta, #phi and vtx_{z};#eta;#phi;vtx_{z}",etabins,etalow,etaup,phibins,0.0,2*TMath::Pi(),zvtxbins,zvtxlow,zvtxup)};
@@ -98,25 +118,26 @@ struct DptDptCorrelationsFilteredAnalysisTask {
   Filter etaFilter = (aod::track::tgl < float(tan(0.5*M_PI - 2.0*atan(exp(etalow))))) && (aod::track::tgl > float(tan(0.5*M_PI - 2.0*atan(exp(etaup)))));
   Filter ptFilter = ((aod::track::signed1Pt < float(1.0/ptlow)) && (aod::track::signed1Pt > float(1.0/ptup))) || ((aod::track::signed1Pt < - float(1.0/ptup)) && (aod::track::signed1Pt > - float(1.0/ptlow)));
 
-  void process(aod::Collision const& collision, soa::Filtered<aod::Tracks> const& ftracks)
+  void process(aod::CollisionEvSelCent const& collision, soa::Filtered<aod::Tracks> const& ftracks)
   {
-
-    LOGF(INFO,"Alive! Got a new collision with %d filtered tracks", ftracks.size());
-    for (auto& track : ftracks) {
-      fhPtA->Fill(track.pt());
-      fhEtaA->Fill(track.eta());
-      fhPhiA->Fill(track.phi());
-      fhEtaVsPhiA->Fill(track.phi(),track.eta());
-      fhPtVsEtaA->Fill(track.eta(),track.pt());
-      if (track.charge() > 0) {
-        fhPtPosA->Fill(track.pt());
-      }
-      else {
-        fhPtNegA->Fill(track.pt());
+    LOGF(INFO,"New collision with %d filtered tracks", ftracks.size());
+    if (IsEvtSelected(collision)) {
+      LOGF(INFO,"New accepted collision with %d filtered tracks", ftracks.size());
+      for (auto& track : ftracks) {
+        fhPtA->Fill(track.pt());
+        fhEtaA->Fill(track.eta());
+        fhPhiA->Fill(track.phi());
+        fhEtaVsPhiA->Fill(track.phi(),track.eta());
+        fhPtVsEtaA->Fill(track.eta(),track.pt());
+        if (track.charge() > 0) {
+          fhPtPosA->Fill(track.pt());
+        }
+        else {
+          fhPtNegA->Fill(track.pt());
+        }
       }
     }
   }
-
 };
 
 
@@ -148,25 +169,27 @@ struct DptDptCorrelationsUnFilteredAnalysisTask {
     fOutPtVsEtaB.setObject(fhPtVsEtaB);
   }
 
-  void process(aod::Collision const& collision, aod::Tracks const& uftracks)
+  void process(aod::CollisionEvSelCent const& collision, aod::Tracks const& uftracks)
   {
 
-    LOGF(INFO,"Alive! Got a new collision with %d unfiltered tracks", uftracks.size());
-    for (auto& track : uftracks) {
-      fhPtB->Fill(track.pt());
-      fhEtaB->Fill(track.eta());
-      fhPhiB->Fill(track.phi());
-      fhEtaVsPhiB->Fill(track.phi(),track.eta());
-      fhPtVsEtaB->Fill(track.eta(),track.pt());
-      if (track.charge() > 0) {
-        fhPtPosB->Fill(track.pt());
-      }
-      else {
-        fhPtNegB->Fill(track.pt());
+    LOGF(INFO,"New collision with %d unfiltered tracks", uftracks.size());
+    if (IsEvtSelected(collision)) {
+      LOGF(INFO,"New accepted collision with %d unfiltered tracks", uftracks.size());
+      for (auto& track : uftracks) {
+        fhPtB->Fill(track.pt());
+        fhEtaB->Fill(track.eta());
+        fhPhiB->Fill(track.phi());
+        fhEtaVsPhiB->Fill(track.phi(),track.eta());
+        fhPtVsEtaB->Fill(track.eta(),track.pt());
+        if (track.charge() > 0) {
+          fhPtPosB->Fill(track.pt());
+        }
+        else {
+          fhPtNegB->Fill(track.pt());
+        }
       }
     }
   }
-
 };
 
 // Task for building <dpt,dpt> correlations
@@ -183,6 +206,7 @@ struct DptDptCorrelationsTask {
 
   void process(aod::Collisions,aod::Tracks const& tracks)
   {
+    LOGF(INFO,"New unfiltered collision with %d unfiltered tracks", tracks.size());
     for (auto& track : tracks) {
       if (track.charge() < 0) {
     	fhPtMinus->Fill(track.pt());
