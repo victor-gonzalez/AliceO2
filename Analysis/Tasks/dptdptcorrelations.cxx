@@ -67,10 +67,14 @@ namespace dptdptcorrelations {
 
   bool IsEvtSelected(aod::CollisionEvSelCent const& collision) {
     if (collision.alias()[0]) {
+      LOGF(INFO,"Event selection with alias()[0] = %x",collision.alias()[0]);
       if (collision.sel7()) {
+        LOGF(INFO,"Event selection with sel7() true");
         return true;
       }
+      LOGF(INFO,"Event selection with sel7() false");
     }
+    LOGF(INFO,"Event selection with alias()[0] = %x",collision.alias()[0]);
     return false;
   }
 }  /* end namespace dptdptcorrelations */
@@ -204,9 +208,9 @@ struct DptDptCorrelationsTask {
 	etaphiminusH->SetMarkerStyle(kFullCircle);
   }
 
-  void process(aod::Collisions,aod::Tracks const& tracks)
+  void process(aod::Collision const& collision,aod::Tracks const& tracks)
   {
-    LOGF(INFO,"New unfiltered collision with %d unfiltered tracks", tracks.size());
+    LOGF(INFO,"New unfiltered collision with z_vtx: %f and with %d unfiltered tracks", collision.posZ(),tracks.size());
     for (auto& track : tracks) {
       if (track.charge() < 0) {
     	fhPtMinus->Fill(track.pt());
