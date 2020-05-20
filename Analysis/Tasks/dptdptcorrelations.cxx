@@ -13,6 +13,8 @@
 #include "Framework/ASoAHelpers.h"
 #include "Analysis/EventSelection.h"
 #include "Analysis/Centrality.h"
+#include "Analysis/TrackSelection.h"
+#include "Analysis/TrackSelectionTables.h"
 #include <TROOT.h>
 #include <TList.h>
 #include <TDirectory.h>
@@ -32,7 +34,7 @@ namespace o2
   namespace aod
   {
     using CollisionEvSelCent = soa::Join<aod::Collisions, aod::EvSels, aod::Cents>::iterator;
-    using FilteredTrack = soa::Filtered<aod::Tracks>::iterator;
+    using TracksTracksType = soa::Join<aod::Tracks, aod::TrackSelection>::iterator;
 
     namespace dptdptcorrelations {
       DECLARE_SOA_COLUMN(TrackacceptedAsOne, trackacceptedasone, bool);
@@ -53,6 +55,8 @@ namespace dptdptcorrelations {
   float zvtxlow = -10.0, zvtxup = 10.0;
   int phibins = 72;
   std::string fTaskConfigurationString = "PendingToConfigure";
+
+  Configurable<int> cfgTrackType{"trktype",1,"Type of selected tracks: 0 = no selection, 1 = TPC only tracks, 2 = global SDD tracks"};
 
   /// \enum SystemType
   /// \brief The type of the system under analysis
@@ -93,23 +97,44 @@ namespace dptdptcorrelations {
   bool IsEvtSelected(aod::CollisionEvSelCent const& collision) {
     if (collision.alias()[0]) {
       if (collision.sel7()) {
-        return true;
+        if (zvtxlow < collision.posZ() and collision.posZ() < zvtxup) {
+          return true;
+        }
+        return false;
       }
     }
     return false;
   }
 
-  std::tuple<bool,bool> AcceptTrack(aod::FilteredTrack const &track) {
+  bool matchTrackType(aod::TracksTracksType const &track) {
+    switch(cfgTrackType) {
+      case 1:
+        if (track.isGlobalTrack()) return true; else return false;
+        break;
+      case 2:
+        if (track.isGlobalTrackSDD()) return true; else return false;
+        break;
+      default:
+        return false;
+    }
+  }
+
+  std::tuple<bool,bool> AcceptTrack(aod::TracksTracksType const &track) {
     bool asone = false;
     bool astwo = false;
 
-    if (track.charge() > 0) {
-      /* we have to check here with the configured track one */
-      asone = true; /* for the time being +- correlations */
-    }
-    else if (track.charge() < 0) {
-      /* we have to check here with the configured track one */
-      astwo = true; /* for the time being +- correlations */
+    /* TODO: incorporate a mask in the scanned tracks table for the rejecting track reason */
+    if (matchTrackType(track)) {
+      if (ptlow < track.pt() and track.pt() < ptup and etalow < track.eta() and track.eta() < etaup) {
+        if (track.charge() > 0) {
+          /* we have to check here with the configured track one */
+          asone = true; /* for the time being +- correlations */
+        }
+        else if (track.charge() < 0) {
+          /* we have to check here with the configured track one */
+          astwo = true; /* for the time being +- correlations */
+        }
+      }
     }
     return std::make_tuple(asone, astwo); 
   }
@@ -166,12 +191,7 @@ struct DptDptCorrelationsFilteredAnalysisTask {
     fOutPtVsEtaA.setObject(fhPtVsEtaA);
   }
 
-  float fPi = static_cast<float>(M_PI);
-
-  Filter etaFilter = (aod::track::tgl < (tan(0.5f*fPi - 2.0f*atan(exp(etalow))))) && (aod::track::tgl > (tan(0.5f*fPi - 2.0f*atan(exp(etaup)))));
-  Filter ptFilter = ((aod::track::signed1Pt < (1.0f/ptlow)) && (aod::track::signed1Pt > (1.0f/ptup))) || ((aod::track::signed1Pt < - (1.0f/ptup)) && (aod::track::signed1Pt > - (1.0f/ptlow)));
-
-  void process(aod::CollisionEvSelCent const& collision, soa::Filtered<aod::Tracks> const& ftracks)
+  void process(aod::CollisionEvSelCent const& collision, soa::Join<aod::Tracks, aod::TrackSelection> const& ftracks)
   {
 //    LOGF(INFO,"New collision with %d filtered tracks", ftracks.size());
     if (IsEvtSelected(collision)) {
