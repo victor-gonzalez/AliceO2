@@ -48,13 +48,12 @@ namespace o2
 {
 namespace aod
 {
-/* we have to change from int to bool when bool columns work properly */
 namespace dptdptcorrelations
 {
-DECLARE_SOA_COLUMN(EventAccepted, eventaccepted, uint8_t);
+DECLARE_SOA_COLUMN(EventAccepted, eventaccepted, bool);
 DECLARE_SOA_COLUMN(EventCentMult, centmult, float);
-DECLARE_SOA_COLUMN(TrackacceptedAsOne, trackacceptedasone, uint8_t);
-DECLARE_SOA_COLUMN(TrackacceptedAsTwo, trackacceptedastwo, uint8_t);
+DECLARE_SOA_COLUMN(TrackacceptedAsOne, trackacceptedasone, bool);
+DECLARE_SOA_COLUMN(TrackacceptedAsTwo, trackacceptedastwo, bool);
 } // namespace dptdptcorrelations
 DECLARE_SOA_TABLE(AcceptedEvents, "AOD", "ACCEPTEDEVENTS", dptdptcorrelations::EventAccepted, dptdptcorrelations::EventCentMult);
 DECLARE_SOA_TABLE(ScannedTracks, "AOD", "SCANNEDTRACKS", dptdptcorrelations::TrackacceptedAsOne, dptdptcorrelations::TrackacceptedAsTwo);
@@ -86,10 +85,6 @@ int trackonecharge = 1;
 int tracktwocharge = -1;
 bool processpairs = false;
 std::string fTaskConfigurationString = "PendingToConfigure";
-
-/* while we don't have proper bool columnst */
-uint8_t DPTDPT_TRUE = 1;
-uint8_t DPTDPT_FALSE = 0;
 
 /// \enum SystemType
 /// \brief The type of the system under analysis
@@ -219,7 +214,7 @@ bool matchTrackType(aod::TrackData const& track)
 {
   switch (tracktype) {
     case 1:
-      if (track.isGlobalTrack() != 0 || track.isGlobalTrackSDD() != 0) {
+      if ((track.isGlobalTrack() == true) || (track.isGlobalTrackSDD() == true)) {
         return true;
       } else {
         return false;
@@ -230,20 +225,20 @@ bool matchTrackType(aod::TrackData const& track)
   }
 }
 
-inline void AcceptTrack(aod::TrackData const& track, uint8_t& asone, uint8_t& astwo)
+inline void AcceptTrack(aod::TrackData const& track, bool& asone, bool& astwo)
 {
 
-  asone = DPTDPT_FALSE;
-  astwo = DPTDPT_FALSE;
+  asone = false;
+  astwo = false;
 
   /* TODO: incorporate a mask in the scanned tracks table for the rejecting track reason */
   if (matchTrackType(track)) {
     if (ptlow < track.pt() and track.pt() < ptup and etalow < track.eta() and track.eta() < etaup) {
       if (((track.charge() > 0) and (trackonecharge > 0)) or ((track.charge() < 0) and (trackonecharge < 0))) {
-        asone = DPTDPT_TRUE;
+        asone = true;
       }
       if (((track.charge() > 0) and (tracktwocharge > 0)) or ((track.charge() < 0) and (tracktwocharge < 0))) {
-        astwo = DPTDPT_TRUE;
+        astwo = true;
       }
     }
   }
@@ -407,10 +402,10 @@ struct DptDptCorrelationsFilterAnalysisTask {
     //    LOGF(INFO,"New collision with %d filtered tracks", ftracks.size());
     fhCentMultB->Fill(collision.centV0M());
     fhVertexZB->Fill(collision.posZ());
-    int acceptedevent = DPTDPT_FALSE;
+    bool acceptedevent = false;
     float centormult = -100.0;
     if (IsEvtSelected(collision, centormult)) {
-      acceptedevent = DPTDPT_TRUE;
+      acceptedevent = true;
       fhCentMultA->Fill(collision.centV0M());
       fhVertexZA->Fill(collision.posZ());
       //      LOGF(INFO,"New accepted collision with %d filtered tracks", ftracks.size());
@@ -430,9 +425,9 @@ struct DptDptCorrelationsFilterAnalysisTask {
 
         /* track selection */
         /* tricky because the boolean columns issue */
-        uint8_t asone, astwo;
+        bool asone, astwo;
         AcceptTrack(track, asone, astwo);
-        if ((asone == DPTDPT_TRUE) or (astwo == DPTDPT_TRUE)) {
+        if (asone or astwo) {
           /* the track has been accepted */
           fhPtA->Fill(track.pt());
           fhEtaA->Fill(track.eta());
@@ -449,7 +444,7 @@ struct DptDptCorrelationsFilterAnalysisTask {
       }
     } else {
       for (auto& track : ftracks) {
-        scannedtracks(DPTDPT_FALSE, DPTDPT_FALSE);
+        scannedtracks(false, false);
       }
     }
     acceptedevents(acceptedevent, centormult);
@@ -472,11 +467,11 @@ struct DptDptCorrelationsTask {
   OutputObj<TList> fOutput{"DptDptCorrelationsData", OutputObjHandlingPolicy::AnalysisObject};
   OutputObj<TFolder> fConfOutput{"DptDptCorrelationsConfiguration", OutputObjHandlingPolicy::AnalysisObject};
 
-  Filter onlyacceptedevents = (aod::dptdptcorrelations::eventaccepted == DPTDPT_TRUE);
-  Filter onlyacceptedtracks = ((aod::dptdptcorrelations::trackacceptedasone == DPTDPT_TRUE) or (aod::dptdptcorrelations::trackacceptedastwo == DPTDPT_TRUE));
+  Filter onlyacceptedevents = (aod::dptdptcorrelations::eventaccepted == true);
+  Filter onlyacceptedtracks = ((aod::dptdptcorrelations::trackacceptedasone == true) or (aod::dptdptcorrelations::trackacceptedastwo == true));
 
-  Partition<aod::FilteredTracks> Tracks1 = aod::dptdptcorrelations::trackacceptedasone == DPTDPT_TRUE;
-  Partition<aod::FilteredTracks> Tracks2 = aod::dptdptcorrelations::trackacceptedastwo == DPTDPT_TRUE;
+  Partition<aod::FilteredTracks> Tracks1 = aod::dptdptcorrelations::trackacceptedasone == true;
+  Partition<aod::FilteredTracks> Tracks2 = aod::dptdptcorrelations::trackacceptedastwo == true;
 
   DptDptCorrelationsTask(float cmmin,
                          float cmmax,
@@ -486,20 +481,20 @@ struct DptDptCorrelationsTask {
                                                                                       "triplets - nbins, min, max - for z_vtx, pT, eta and phi, binning plus bin fraction of phi origin shift"},
                          OutputObj<TList> _fOutput = {"DptDptCorrelationsData", OutputObjHandlingPolicy::AnalysisObject},
                          OutputObj<TFolder> _fConfOutput = {"DptDptCorrelationsConfiguration", OutputObjHandlingPolicy::AnalysisObject},
-                         Filter _onlyacceptedevents = (aod::dptdptcorrelations::eventaccepted == DPTDPT_TRUE),
-                         Filter _onlyacceptedtracks = ((aod::dptdptcorrelations::trackacceptedasone == DPTDPT_TRUE) or (aod::dptdptcorrelations::trackacceptedastwo == DPTDPT_TRUE)),
-                         Partition<aod::FilteredTracks> _Tracks1 = aod::dptdptcorrelations::trackacceptedasone == DPTDPT_TRUE,
-                         Partition<aod::FilteredTracks> _Tracks2 = aod::dptdptcorrelations::trackacceptedastwo == DPTDPT_TRUE)
+                         Filter _onlyacceptedevents = (aod::dptdptcorrelations::eventaccepted == true),
+                         Filter _onlyacceptedtracks = ((aod::dptdptcorrelations::trackacceptedasone == true) or (aod::dptdptcorrelations::trackacceptedastwo == true)),
+                         Partition<aod::FilteredTracks> _Tracks1 = aod::dptdptcorrelations::trackacceptedasone == true,
+                         Partition<aod::FilteredTracks> _Tracks2 = aod::dptdptcorrelations::trackacceptedastwo == true)
     : fCentMultMin(cmmin),
       fCentMultMax(cmmax),
       cfgProcessPairs(_cfgProcessPairs),
       cfgBinning(_cfgBinning),
       fOutput(_fOutput),
       fConfOutput(_fConfOutput),
-      onlyacceptedevents((aod::dptdptcorrelations::eventaccepted == DPTDPT_TRUE) and (aod::dptdptcorrelations::centmult > fCentMultMin) and (aod::dptdptcorrelations::centmult < fCentMultMax)),
-      onlyacceptedtracks((aod::dptdptcorrelations::trackacceptedasone == DPTDPT_TRUE) or (aod::dptdptcorrelations::trackacceptedastwo == DPTDPT_TRUE)),
-      Tracks1(aod::dptdptcorrelations::trackacceptedasone == DPTDPT_TRUE),
-      Tracks2(aod::dptdptcorrelations::trackacceptedastwo == DPTDPT_TRUE)
+      onlyacceptedevents((aod::dptdptcorrelations::eventaccepted == true) and (aod::dptdptcorrelations::centmult > fCentMultMin) and (aod::dptdptcorrelations::centmult < fCentMultMax)),
+      onlyacceptedtracks((aod::dptdptcorrelations::trackacceptedasone == true) or (aod::dptdptcorrelations::trackacceptedastwo == true)),
+      Tracks1(aod::dptdptcorrelations::trackacceptedasone == true),
+      Tracks2(aod::dptdptcorrelations::trackacceptedastwo == true)
   {
   }
 
@@ -807,13 +802,13 @@ struct TracksAndEventClassificationQA {
     fSelectedEvents->GetXaxis()->SetBinLabel(2, "Selected events");
   }
 
-  Filter onlyacceptedevents = (aod::dptdptcorrelations::eventaccepted == DPTDPT_TRUE);
-  Filter onlyacceptedtracks = ((aod::dptdptcorrelations::trackacceptedasone == DPTDPT_TRUE) or (aod::dptdptcorrelations::trackacceptedastwo == DPTDPT_TRUE));
+  Filter onlyacceptedevents = (aod::dptdptcorrelations::eventaccepted == true);
+  Filter onlyacceptedtracks = ((aod::dptdptcorrelations::trackacceptedasone == true) or (aod::dptdptcorrelations::trackacceptedastwo == true));
 
   void process(soa::Filtered<soa::Join<aod::Collisions, aod::EvSels, aod::Cents, aod::AcceptedEvents>>::iterator const& collision,
                soa::Filtered<soa::Join<aod::Tracks, aod::ScannedTracks>> const& tracks)
   {
-    if (collision.eventaccepted() != DPTDPT_TRUE) {
+    if (collision.eventaccepted() != true) {
       fSelectedEvents->Fill(0.5);
     } else {
       fSelectedEvents->Fill(1.5);
@@ -824,20 +819,20 @@ struct TracksAndEventClassificationQA {
     int ntracks_one_and_two = 0;
     int ntracks_none = 0;
     for (auto& track : tracks) {
-      if ((track.trackacceptedasone() != DPTDPT_TRUE) and (track.trackacceptedastwo() != DPTDPT_TRUE)) {
+      if ((track.trackacceptedasone() != true) and (track.trackacceptedastwo() != true)) {
         ntracks_none++;
       }
-      if ((track.trackacceptedasone() == DPTDPT_TRUE) and (track.trackacceptedastwo() == DPTDPT_TRUE)) {
+      if ((track.trackacceptedasone() == true) and (track.trackacceptedastwo() == true)) {
         ntracks_one_and_two++;
       }
-      if (track.trackacceptedasone() == DPTDPT_TRUE) {
+      if ((track.trackacceptedasone() == true)) {
         ntracks_one++;
       }
-      if (track.trackacceptedastwo() == DPTDPT_TRUE) {
+      if ((track.trackacceptedastwo() == true)) {
         ntracks_two++;
       }
     }
-    if (collision.eventaccepted() != DPTDPT_TRUE) {
+    if (!collision.eventaccepted()) {
       /* control for non selected events */
       fTracksOneUnsel->Fill(ntracks_one);
       fTracksTwoUnsel->Fill(ntracks_two);
