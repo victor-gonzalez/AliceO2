@@ -15,3 +15,4 @@
 #pragma link C++ class o2::analysis::EventSelectionCuts + ;
 #pragma link C++ class o2::analysis::DptDptBinningCuts + ;
 #pragma link C++ class o2::analysis::SimpleInclusiveCut + ;
+#pragma linc C++ class o2::analysis::AnalysisConfigurableCutsBase + ;

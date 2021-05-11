@@ -15,6 +15,8 @@
 /// \brief Base class for the analysis configurable cuts support
 ///
 
+#include <Rtypes.h>
+#include <TObject.h>
 #include <TBits.h>
 #include <TNamed.h>
 
@@ -66,7 +68,7 @@ class AnalysisConfigurableCutsBase : public TNamed
 
   AnalysisConfigurableCutsBase();
   AnalysisConfigurableCutsBase(Int_t nCuts, Int_t nParams, const char* name = "CS AnalysisCuts", const char* title = "CS AnalysisCuts");
-  virtual ~AnalysisConfigurableCutsBase();
+  virtual ~AnalysisConfigurableCutsBase() override;
 
   /// Gets the current activated cuts
   /// \return the mask with the activated cuts
@@ -74,7 +76,7 @@ class AnalysisConfigurableCutsBase : public TNamed
 
   /// Initializes the cuts
   /// \param name the name to assign to the histograms list
-  virtual void InitCuts(const char* name) = 0;
+  virtual void InitCuts(const char* name) {} // = 0;
   /// Sets the desired level for the QA histograms output
   /// \param level the desired QA histograms output level
   void SetQALevelOutput(QALevel level) { fQALevel = level; }
@@ -84,10 +86,10 @@ class AnalysisConfigurableCutsBase : public TNamed
 
   /// Processes a potential change in the run number
   /// Pure virtual function
-  virtual void NotifyRun() = 0;
+  virtual void NotifyRun() {} // = 0;
   /// A new event is coming
   /// Pure virtual function
-  virtual void NotifyCollision() = 0;
+  virtual void NotifyCollision() {} // = 0;
   static void NotifyRunGlobal();
   /// Prints the activated cuts mask
   /// \param opt the print options
@@ -115,12 +117,12 @@ class AnalysisConfigurableCutsBase : public TNamed
   /// \param paramID the ID of the cut of interest
   /// \param value the value to assign to the cut
   /// \return kTRUE if the cut value was accepted
-  virtual Bool_t SetCutAndParams(Int_t paramID, Int_t value) = 0;
+  virtual Bool_t SetCutAndParams(Int_t paramID, Int_t value) { return false; } //  = 0;
   void PrintCutsWithValues() const;
   /// Print the cut with its value
   /// Pure virtual function
   /// \param paramID the ID of the cut of interest
-  virtual void PrintCutWithParams(Int_t paramID) const = 0;
+  virtual void PrintCutWithParams(Int_t paramID) const {} // = 0;
 
  private:
   static TString GetPeriodNameFromDataFilePath();
@@ -149,11 +151,11 @@ class AnalysisConfigurableCutsBase : public TNamed
 
   /// Copy constructor
   /// Not allowed. Forced private.
-  AnalysisConfigurableCutsBase(const AnalysisConfigurableCutsBase&);
+  AnalysisConfigurableCutsBase(const AnalysisConfigurableCutsBase&) = delete;
   /// Assignment operator
   /// Not allowed. Forced private.
   /// \return l-value reference object
-  AnalysisConfigurableCutsBase& operator=(const AnalysisConfigurableCutsBase&);
+  AnalysisConfigurableCutsBase& operator=(const AnalysisConfigurableCutsBase&) = delete;
 
   /// \cond CLASSIMP
   ClassDef(AnalysisConfigurableCutsBase, 1);

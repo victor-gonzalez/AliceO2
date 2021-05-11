@@ -10,10 +10,12 @@
 
 o2_add_library(PWGCFCore
                SOURCES  AnalysisConfigurableCuts.cxx
+               SOURCES  AnalysisConfigurableCutsBase.cxx
                PUBLIC_LINK_LIBRARIES O2::Framework O2::AnalysisDataModel)
 
 o2_target_root_dictionary(PWGCFCore
               HEADERS AnalysisConfigurableCuts.h
+              HEADERS AnalysisConfigurableCutsBase.h
               LINKDEF PWGCFCoreLinkDef.h)
 
 o2_add_dpl_workflow(dptdptcorrelations
