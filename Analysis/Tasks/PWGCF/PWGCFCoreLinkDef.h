@@ -16,3 +16,7 @@
 #pragma link C++ class o2::analysis::EventSelectionCuts + ;
 #pragma link C++ class o2::analysis::DptDptBinningCuts + ;
 #pragma link C++ class o2::analysis::SimpleInclusiveCut + ;
+#pragma link C++ class o2::analysis::CutBrick < float> + ;
+#pragma link C++ class o2::analysis::CutBrick < int> + ;
+///#pragma link C++ class o2::analysis::CutBrickLimit < float> + ;
+///#pragma link C++ class o2::analysis::CutBrickLimit < int> + ;
